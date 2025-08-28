@@ -2,11 +2,12 @@
 
 SoftwareSerial mySerial(2, 3); // RX, TX
 
+// Buton ayarları
 const int buttonPin = 8;
-bool buttonState = HIGH;        // Şu anki buton durumu
-bool lastButtonState = HIGH;    // Önceki döngüdeki buton durumu
-unsigned long lastDebounceTime = 0;  
-unsigned long debounceDelay = 50; // 50 ms debounce süresi
+bool buttonState = HIGH;
+bool lastButtonState = HIGH;
+unsigned long lastDebounceTime = 0;
+unsigned long debounceDelay = 50;
 
 void setup() {
   Serial.begin(9600);
@@ -14,45 +15,42 @@ void setup() {
 
   pinMode(buttonPin, INPUT_PULLUP);
   Serial.println("LoRa Verici Başladı...");
+  Serial.println("Python arayüzünden veya butondan komut bekleniyor.");
 }
 
 void loop() {
+  // --- BUTON KONTROL KISMI (Röle için) ---
   int reading = digitalRead(buttonPin);
 
-  // Buton durumu değişmişse zaman damgası al
   if (reading != lastButtonState) {
     lastDebounceTime = millis();
   }
 
-  // Değişiklik debounce süresince sabit kaldıysa, buton durumu değişti
   if ((millis() - lastDebounceTime) > debounceDelay) {
     if (reading != buttonState) {
       buttonState = reading;
-
-      // Butona basıldıysa (LOW)
       if (buttonState == LOW) {
         mySerial.write('a');
-        Serial.println("Gönderildi: a");
-      }
-      // Buton bırakıldıysa (HIGH)
-      else {
+        Serial.println("Buton basıldı, röle komutu gönderildi: a");
+      } else {
         mySerial.write('b');
-        Serial.println("Gönderildi: b");
+        Serial.println("Buton bırakıldı, röle komutu gönderildi: b");
       }
     }
   }
-
   lastButtonState = reading;
 
-  // (İsteğe bağlı) LoRa'dan geleni yaz
-  if (mySerial.available()) {
-    char c = mySerial.read();
-    Serial.write(c);
-  }
-
-  // (İsteğe bağlı) Serial üzerinden yazılanı LoRa'ya gönder
-  if (Serial.available()) {
-    char d = Serial.read();
-    mySerial.write(d);
+  // --- PYTHON ARAYÜZÜNDEN GELEN VERİYİ GÖNDERME KISMI ---
+  // Bilgisayarın seri portundan veri gelip gelmediğini kontrol et
+  if (Serial.available() > 0) {
+    // Gelen veriyi satır sonu karakterine kadar oku ('\n')
+    String dataToSend = Serial.readStringUntil('\n');
+    
+    // Veriyi LoRa üzerinden gönder
+    mySerial.print(dataToSend);
+    
+    // Bilgi amaçlı bilgisayarın seri portuna da yazdır
+    Serial.print("Python'dan alındı, LoRa ile gönderiliyor: ");
+    Serial.println(dataToSend);
   }
 }
